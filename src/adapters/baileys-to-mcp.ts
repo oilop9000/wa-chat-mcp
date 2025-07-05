@@ -1,7 +1,7 @@
 import {
-    WAMessage,
-    DisconnectReasonKey,
-    DisconnectReason
+  WAMessage,
+  DisconnectReasonKey,
+  DisconnectReason
 } from '@whiskeysockets/baileys';
 import * as McpEventEmitter from '../mcp/mcp-event-emitter';
 import * as MediaHandler from '../media/media-handler';
@@ -119,7 +119,7 @@ export async function handleNewBaileysMessage(mcpSessionId: string, message: WAM
 
       // If it's a text message with media (e.g. image with caption), ensure text is also captured
       if (mediaInfo.caption && !mcpMessagePayload.text) {
-          mcpMessagePayload.text = mediaInfo.caption;
+        mcpMessagePayload.text = mediaInfo.caption;
       }
 
     } else {
@@ -129,28 +129,28 @@ export async function handleNewBaileysMessage(mcpSessionId: string, message: WAM
   } else if (message.message?.reactionMessage) {
     mcpMessagePayload.type = 'reaction';
     mcpMessagePayload.reaction = {
-        text: message.message.reactionMessage.text,
-        targetMessageId: message.message.reactionMessage.key?.id
+      text: message.message.reactionMessage.text,
+      targetMessageId: message.message.reactionMessage.key?.id
     };
   } else if (message.message?.locationMessage) {
     mcpMessagePayload.type = 'location';
     mcpMessagePayload.location = {
-        degreesLatitude: message.message.locationMessage.degreesLatitude,
-        degreesLongitude: message.message.locationMessage.degreesLongitude,
-        name: message.message.locationMessage.name,
-        address: message.message.locationMessage.address,
+      degreesLatitude: message.message.locationMessage.degreesLatitude,
+      degreesLongitude: message.message.locationMessage.degreesLongitude,
+      name: message.message.locationMessage.name,
+      address: message.message.locationMessage.address,
     };
   } else if (message.message?.contactMessage) {
     mcpMessagePayload.type = 'contact';
     mcpMessagePayload.contact = {
-        displayName: message.message.contactMessage.displayName,
-        vcard: message.message.contactMessage.vcard,
+      displayName: message.message.contactMessage.displayName,
+      vcard: message.message.contactMessage.vcard,
     };
   } else if (message.message?.contactsArrayMessage) {
     mcpMessagePayload.type = 'contacts_array';
     mcpMessagePayload.contacts = message.message.contactsArrayMessage.contacts?.map((c: any) => ({ // Added :any for c
-        displayName: c.displayName,
-        vcard: c.vcard,
+      displayName: c.displayName,
+      vcard: c.vcard,
     }));
   } else {
     const messageKeys = message.message ? Object.keys(message.message).join(', ') : 'null';
