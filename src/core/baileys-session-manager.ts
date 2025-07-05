@@ -1,14 +1,14 @@
 import {
-  makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  BaileysEventMap,
-  ConnectionState,
-  SocketConfig,
-  WAMessage,
-  MessageUpsertType,
-  BaileysSocket,
-  DisconnectReasonKey
+    makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    BaileysEventMap,
+    ConnectionState,
+    SocketConfig,
+    WAMessage,
+    MessageUpsertType,
+    BaileysSocket,
+    DisconnectReasonKey
 } from '@whiskeysockets/baileys';
 import path from 'path';
 import { Boom } from '@hapi/boom';
@@ -63,7 +63,7 @@ export async function getOrCreateBaileysSession(
     log(mcpSessionId, 'Returning existing Baileys socket.');
     existingSession.lastActivityTime = new Date();
     if (existingSession.qrCode && (existingSession.socket as any).ws?.readyState !== (existingSession.socket as any).ws?.OPEN) {
-      eventCallbacks.onQR(existingSession.qrCode);
+        eventCallbacks.onQR(existingSession.qrCode);
     }
     return existingSession.socket;
   }
@@ -72,10 +72,20 @@ export async function getOrCreateBaileysSession(
   const stateDir = path.join(AUTH_STATE_BASE_DIR, `session_${mcpSessionId}`);
   const { state, saveCreds } = await useMultiFileAuthState(stateDir); // Use direct import
 
+  const minimalBaileysLogger = {
+    info: (...args: any[]) => console.log('[Baileys INFO]', ...args),
+    error: (...args: any[]) => console.error('[Baileys ERROR]', ...args),
+    warn: (...args: any[]) => console.warn('[Baileys WARN]', ...args),
+    debug: (...args: any[]) => {}, // console.log('[Baileys DEBUG]', ...args), // Disabled debug for less verbosity
+    trace: (...args: any[]) => {}, // console.log('[Baileys TRACE]', ...args),
+    fatal: (...args: any[]) => console.error('[Baileys FATAL]', ...args),
+    child: () => minimalBaileysLogger, // child() devuelve el mismo logger
+  };
+
   const socketConfig: SocketConfig = {
     auth: state,
     printQRInTerminal: false,
-    logger: { info: () => { }, error: console.error, warn: console.warn, debug: () => { } } as any,
+    logger: minimalBaileysLogger as any, // 'as any' para que coincida con el tipo SocketConfig del stub
     ...options,
   };
 
@@ -126,12 +136,12 @@ export async function getOrCreateBaileysSession(
   sock.ev.on('messages.upsert', (m: { messages: WAMessage[], type: MessageUpsertType }) => { // Changed pkgBaileys.MessageUpsertType to MessageUpsertType
     // log(mcpSessionId, `New message upsert: ${JSON.stringify(m)}`);
     if (m.messages && m.messages.length > 0) {
-      // We typically care about new messages that are not from oneself and have actual content
-      m.messages.forEach((msg: WAMessage) => {
-        if (msg.message && !msg.key.fromMe) { // Process if message exists and not from self
-          eventCallbacks.onMessage(msg, mcpSessionId);
-        }
-      });
+        // We typically care about new messages that are not from oneself and have actual content
+        m.messages.forEach((msg: WAMessage) => {
+            if (msg.message && !msg.key.fromMe) { // Process if message exists and not from self
+                eventCallbacks.onMessage(msg, mcpSessionId);
+            }
+        });
     }
   });
 
@@ -193,15 +203,15 @@ export async function removeBaileysSession(mcpSessionId: string, deleteAuthState
         // Ensure the directory exists before trying to remove it.
         const fs = require('fs').promises;
         try {
-          await fs.rm(session.stateDir, { recursive: true, force: true });
-          log(mcpSessionId, `Auth state directory ${session.stateDir} removed.`);
+            await fs.rm(session.stateDir, { recursive: true, force: true });
+            log(mcpSessionId, `Auth state directory ${session.stateDir} removed.`);
         } catch (rmError: any) {
-          // ENOENT means directory doesn't exist, which is fine if we're cleaning up.
-          if (rmError.code !== 'ENOENT') {
-            log(mcpSessionId, `Error removing auth state directory ${session.stateDir}: ${rmError.message}`);
-          } else {
-            log(mcpSessionId, `Auth state directory ${session.stateDir} not found, no removal needed.`);
-          }
+            // ENOENT means directory doesn't exist, which is fine if we're cleaning up.
+            if (rmError.code !== 'ENOENT') {
+                log(mcpSessionId, `Error removing auth state directory ${session.stateDir}: ${rmError.message}`);
+            } else {
+                log(mcpSessionId, `Auth state directory ${session.stateDir} not found, no removal needed.`);
+            }
         }
       } catch (err) {
         log(mcpSessionId, `Error deleting auth state for session ${mcpSessionId} at ${session.stateDir}: ${err instanceof Error ? err.message : String(err)}`);
