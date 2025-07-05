@@ -13,6 +13,7 @@ import {
 import path from 'path';
 import { Boom } from '@hapi/boom';
 import { unlink } from 'fs/promises'; // For deleting auth state
+import qrcode from 'qrcode-terminal';
 // import * as BAILEYS_MESSAGE_TYPE from '@whiskeysockets/baileys' // This line was causing the error
 // We already import WAMessage which is a good general type for messages.
 // Specific message content types can be accessed via message.message.imageMessage etc.
@@ -108,9 +109,12 @@ export async function getOrCreateBaileysSession(
     newBaileysSession.lastActivityTime = new Date();
 
     if (qr) {
-      log(mcpSessionId, 'QR code received.');
+      log(mcpSessionId, 'QR code received. Displaying in server console...');
+      qrcode.generate(qr, { small: true }, (qrcodeString: string) => { // Added type for qrcodeString
+        console.log(qrcodeString);
+      });
       newBaileysSession.qrCode = qr;
-      eventCallbacks.onQR(qr);
+      eventCallbacks.onQR(qr); // Still send via SSE for any connected client
     }
 
     if (connection === 'close') {
