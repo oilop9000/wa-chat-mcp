@@ -109,10 +109,13 @@ export async function getOrCreateBaileysSession(
     newBaileysSession.lastActivityTime = new Date();
 
     if (qr) {
-      log(mcpSessionId, 'QR code received. Displaying in server console...');
-      qrcode.generate(qr, { small: true }, (qrcodeString: string) => { // Added type for qrcodeString
-        console.log(qrcodeString);
-      });
+      log(mcpSessionId, 'QR code received. Attempting to display directly in server console...');
+      try {
+        qrcode.generate(qr, { small: true }); // Sin callback, debería imprimir a la consola
+        console.log('<<<<< QR Code should be above this line >>>>>');
+      } catch (e: any) {
+        console.error('[qrcode.generate] Error during QR generation for console:', e.message);
+      }
       newBaileysSession.qrCode = qr;
       eventCallbacks.onQR(qr); // Still send via SSE for any connected client
     }
