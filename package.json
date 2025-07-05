@@ -1,0 +1,37 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "MCP server to interact with whatsapp",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc -w & nodemon dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oilop9000/wa-chat-mcp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/oilop9000/wa-chat-mcp/issues"
+  },
+  "homepage": "https://github.com/oilop9000/wa-chat-mcp#readme",
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/hapi__boom": "^7.4.1",
+    "@types/node": "^24.0.10",
+    "@types/uuid": "^10.0.0",
+    "nodemon": "^3.1.10",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.0",
+    "dotenv": "^17.0.1",
+    "uuid": "^11.1.0"
+  }
+}
