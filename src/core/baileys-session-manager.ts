@@ -1,7 +1,19 @@
-import baileys, { BaileysEventMap, ConnectionState, SocketConfig, WAMessage, MessageUpsertType, BaileysSocket, DisconnectReasonKey } from '@whiskeysockets/baileys';
+import {
+    makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    BaileysEventMap,
+    ConnectionState,
+    SocketConfig,
+    WAMessage,
+    MessageUpsertType,
+    BaileysSocket,
+    DisconnectReasonKey
+} from '@whiskeysockets/baileys';
 import path from 'path';
 import { Boom } from '@hapi/boom';
 import { unlink } from 'fs/promises'; // For deleting auth state
+import qrcode from 'qrcode-terminal';
 // import * as BAILEYS_MESSAGE_TYPE from '@whiskeysockets/baileys' // This line was causing the error
 // We already import WAMessage which is a good general type for messages.
 // Specific message content types can be accessed via message.message.imageMessage etc.
@@ -15,6 +27,8 @@ interface BaileysSession {
   creationTime: Date;
   lastActivityTime: Date;
   qrCode?: string; // Store the last QR code
+  socketOptions?: Partial<SocketConfig>; // To store original options for re-initialization
+  retryCount: number; // For reconnection attempts
 }
 
 const log = (mcpSessionId: string | null, message: string) => {
@@ -59,16 +73,26 @@ export async function getOrCreateBaileysSession(
 
   log(mcpSessionId, 'Creating new Baileys socket...');
   const stateDir = path.join(AUTH_STATE_BASE_DIR, `session_${mcpSessionId}`);
-  const { state, saveCreds } = await baileys.useMultiFileAuthState(stateDir); // Use baileys.useMultiFileAuthState
+  const { state, saveCreds } = await useMultiFileAuthState(stateDir); // Use direct import
+
+  const minimalBaileysLogger = {
+    info: (...args: any[]) => console.log('[Baileys INFO]', ...args),
+    error: (...args: any[]) => console.error('[Baileys ERROR]', ...args),
+    warn: (...args: any[]) => console.warn('[Baileys WARN]', ...args),
+    debug: (...args: any[]) => {}, // console.log('[Baileys DEBUG]', ...args), // Disabled debug for less verbosity
+    trace: (...args: any[]) => {}, // console.log('[Baileys TRACE]', ...args),
+    fatal: (...args: any[]) => console.error('[Baileys FATAL]', ...args),
+    child: () => minimalBaileysLogger, // child() devuelve el mismo logger
+  };
 
   const socketConfig: SocketConfig = {
     auth: state,
     printQRInTerminal: false,
-    logger: { info: () => {}, error: console.error, warn: console.warn, debug: () => {} } as any,
+    logger: minimalBaileysLogger as any, // 'as any' para que coincida con el tipo SocketConfig del stub
     ...options,
   };
 
-  const sock: BaileysSocket = baileys.makeWASocket(socketConfig); // Use baileys.makeWASocket
+  const sock: BaileysSocket = makeWASocket(socketConfig); // Use direct import
 
   const newBaileysSession: BaileysSession = {
     mcpSessionId,
@@ -76,6 +100,8 @@ export async function getOrCreateBaileysSession(
     stateDir,
     creationTime: new Date(),
     lastActivityTime: new Date(),
+    socketOptions: options, // Store original options
+    retryCount: 0, // Initialize retry count
   };
   baileysSessions.set(mcpSessionId, newBaileysSession);
 
@@ -87,27 +113,85 @@ export async function getOrCreateBaileysSession(
     newBaileysSession.lastActivityTime = new Date();
 
     if (qr) {
-      log(mcpSessionId, 'QR code received.');
+      log(mcpSessionId, 'QR code received. Attempting to display directly in server console...');
+      try {
+        qrcode.generate(qr, { small: true }); // Sin callback, debería imprimir a la consola
+        console.log('<<<<< QR Code should be above this line >>>>>');
+      } catch (e: any) {
+        console.error('[qrcode.generate] Error during QR generation for console:', e.message);
+      }
       newBaileysSession.qrCode = qr;
-      eventCallbacks.onQR(qr);
+      eventCallbacks.onQR(qr); // Still send via SSE for any connected client
     }
 
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== baileys.DisconnectReason.loggedOut;
-      log(mcpSessionId, `Connection closed due to ${lastDisconnect?.error}, reconnecting: ${shouldReconnect}`);
+      const boomError = lastDisconnect?.error as Boom;
+      const isLoggedOut = boomError?.output?.statusCode === DisconnectReason.loggedOut;
+      // Prioritize specific error message for restart, then status code 515
+      const isRestartRequired = boomError?.message.includes('Stream Errored (restart required)') ||
+                                boomError?.output?.statusCode === 515;
+
+      log(mcpSessionId, `Connection closed. Error: ${boomError?.message || 'No error object'}, Baileys Reason: ${lastDisconnect?.reason}, LoggedOut: ${isLoggedOut}, RestartRequired: ${isRestartRequired}`);
       eventCallbacks.onDisconnected(lastDisconnect?.reason as DisconnectReasonKey, mcpSessionId);
-      // removeBaileysSession(mcpSessionId, false); // Don't delete auth state on temporary disconnect
-      if (shouldReconnect) {
-        // Reconnection logic is often handled internally by Baileys if not logged out
-        // Or you might need to call getOrCreateBaileysSession again from a higher level
-      } else {
-        // Logged out, cleanup auth state
+
+      if (isLoggedOut) {
         log(mcpSessionId, 'Logged out. Cleaning up auth state.');
-        removeBaileysSession(mcpSessionId, true); // Delete auth state
+        removeBaileysSession(mcpSessionId, true); // true to delete auth state
+      } else if (isRestartRequired) {
+        const currentSession = baileysSessions.get(mcpSessionId);
+        if (currentSession) {
+          const MAX_RETRIES = 3;
+          const RETRY_DELAY_MS = 3000; // 3 seconds
+
+          if (currentSession.retryCount < MAX_RETRIES) {
+            currentSession.retryCount++;
+            log(mcpSessionId, `Restart required. Attempting re-initialization (Attempt ${currentSession.retryCount}/${MAX_RETRIES}). Delaying for ${RETRY_DELAY_MS}ms...`);
+
+            // Important: update the session in the map with the new retryCount *before* the async delay
+            baileysSessions.set(mcpSessionId, currentSession);
+
+            setTimeout(() => {
+              // Remove the "bad" session entry just before trying to create a new one
+              // This ensures getOrCreateBaileysSession doesn't just return the closed socket instance
+              baileysSessions.delete(mcpSessionId);
+              log(mcpSessionId, `Removed old session map entry for ${mcpSessionId}. Re-creating...`);
+
+              getOrCreateBaileysSession(mcpSessionId, eventCallbacks, currentSession.socketOptions)
+                .then(() => log(mcpSessionId, `Re-initialization attempt ${currentSession.retryCount} successful.`))
+                .catch(err => {
+                  log(mcpSessionId, `Failed to re-initialize (Attempt ${currentSession.retryCount}): ${err instanceof Error ? err.message : String(err)}`);
+                  // If re-creation fails, the session remains deleted from the map.
+                  // Client would need to trigger /mcp/session/init again.
+                });
+            }, RETRY_DELAY_MS);
+          } else {
+            log(mcpSessionId, `Restart required, but max retries (${MAX_RETRIES}) reached for session ${mcpSessionId}. Not attempting further re-initialization. Please try initializing the session again manually if needed.`);
+            // Optionally, fully remove the session here if max retries are hit, including auth state,
+            // or leave it for manual cleanup / next stale session cleanup.
+            // For now, just stop retrying. The session is already out of the map from the last attempt or will be.
+          }
+        } else {
+          log(mcpSessionId, `Restart required, but session ${mcpSessionId} not found in map. Cannot proceed with re-initialization.`);
+        }
+      } else {
+        // Other 'close' events where it's not a logout and not an explicit restart required.
+        // Baileys might handle reconnection internally, or it might be a final closure.
+        log(mcpSessionId, `Connection closed (not logout, not restart_required). Baileys might auto-reconnect or session ended. Error: ${boomError?.message}`);
+        // Consider if any cleanup is needed here, e.g. removing from map but not auth state.
+        // For now, let Baileys handle it or wait for stale session cleanup.
       }
     } else if (connection === 'open') {
-      log(mcpSessionId, 'Connection opened.');
-      newBaileysSession.qrCode = undefined; // Clear QR once connected
+      log(mcpSessionId, 'Connection opened successfully.');
+      if(baileysSessions.has(mcpSessionId)) { // Session might have been re-created
+        const currentSession = baileysSessions.get(mcpSessionId)!;
+        currentSession.retryCount = 0; // Reset retry count on successful connection
+        baileysSessions.set(mcpSessionId, currentSession); // Update session in map
+        log(mcpSessionId, 'Retry count reset.');
+      }
+      newBaileysSession.qrCode = undefined; // Clear QR once connected (newBaileysSession might be stale here if reconnected)
+      const sessionToClearQR = baileysSessions.get(mcpSessionId);
+      if(sessionToClearQR) sessionToClearQR.qrCode = undefined;
+
       eventCallbacks.onConnected();
     }
   });

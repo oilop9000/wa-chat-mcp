@@ -1,5 +1,5 @@
 // Stub type definitions for @whiskeysockets/baileys
-// Re-structured to reflect a default export containing the main functionalities.
+// Assuming named exports for functions and DisconnectReason object
 
 declare module '@whiskeysockets/baileys' {
   // Define interfaces for the types we use
@@ -13,7 +13,7 @@ declare module '@whiskeysockets/baileys' {
 
   // Type definition for the DisconnectReason object's values
   export interface DisconnectReasonMap {
-    loggedOut: string | number; // Specify if you know whether these are strings or numbers
+    loggedOut: string | number;
     connectionClosed: string | number;
     connectionLost: string | number;
     connectionReplaced: string | number;
@@ -21,39 +21,26 @@ declare module '@whiskeysockets/baileys' {
     removed: string | number;
     restartRequired: string | number;
     timedOut: string | number;
-    [key: string]: any; // Allow other string keys for flexibility
+    [key: string]: any;
   }
 
-  // Type for annotating variables that will hold a specific disconnect reason *value*
-  // e.g. let reasonValue: DisconnectReasonValue = baileys.DisconnectReason.loggedOut;
-  // This might be overly complex; often, comparing directly (reason === baileys.DisconnectReason.loggedOut) is enough.
-  // And for function parameters, string | number | undefined might be sufficient if the exact keys aren't strictly needed at type level.
   export type DisconnectReasonKey = keyof DisconnectReasonMap;
 
+  // Export DisconnectReason as a const object
+  export const DisconnectReason: DisconnectReasonMap;
 
-  // Interface for the main module structure exported by Baileys
-  export interface BaileysModule {
-    makeWASocket: (config: SocketConfig) => BaileysSocket;
-    useMultiFileAuthState: (folder: string) => Promise<{ state: any; saveCreds: () => Promise<void> }>;
-    downloadMediaMessage: (
-      message: WAMessage,
-      type: 'buffer' | 'stream',
-      options?: any,
-      fetchOptions?: any
-    ) => Promise<Buffer | NodeJS.ReadableStream>;
-    getDevice: (id: string) => any;
+  // Export functions as named exports
+  export function makeWASocket(config: SocketConfig): BaileysSocket;
+  export function useMultiFileAuthState(folder: string): Promise<{ state: any; saveCreds: () => Promise<void> }>;
+  export function downloadMediaMessage(
+    message: WAMessage,
+    type: 'buffer' | 'stream',
+    options?: any,
+    fetchOptions?: any
+  ): Promise<Buffer | NodeJS.ReadableStream>;
+  export function getDevice(id: string): any;
 
-    // The DisconnectReason object itself, containing the actual reason values/codes
-    DisconnectReason: DisconnectReasonMap;
-
-    // Add other functions or constants exported by Baileys if needed
-    // e.g. Browsers: any;
-  }
-
-  const baileys: BaileysModule;
-  export default baileys; // Assume Baileys exports a default object
-
-  // It's also common for libraries to export some types/interfaces as named exports
-  // even if the main functions are on a default export.
-  // So, WAMessage, SocketConfig etc. are kept as named type exports.
+  // If there's a default export as well (though we might not use it with this structure)
+  // const d: any;
+  // export default d;
 }

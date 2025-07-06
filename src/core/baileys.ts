@@ -1,4 +1,8 @@
-import baileys, { WAMessage, DisconnectReasonKey } from '@whiskeysockets/baileys';
+import {
+    WAMessage,
+    DisconnectReasonKey,
+    DisconnectReason
+} from '@whiskeysockets/baileys';
 import * as BaileysSessionManager from './baileys-session-manager';
 import * as McpEventEmitter from '../mcp/mcp-event-emitter';
 // import { MessageType, MessageContent } from '@whiskeysockets/baileys' // For sending messages
@@ -35,7 +39,7 @@ export async function initializeBaileysForMcpSession(mcpSessionId: string): Prom
           log(currentMcpSessionId, `Baileys disconnected. Reason: ${reason || 'Unknown'}. Notifying MCP client.`);
           McpEventEmitter.sendEventToClient(currentMcpSessionId, 'baileys_disconnected', {
             reason: String(reason || 'Unknown'), // Ensure reason is a string
-            loggedOut: reason === baileys.DisconnectReason.loggedOut // Compare with value from baileys.DisconnectReason
+            loggedOut: reason === DisconnectReason.loggedOut // Compare with direct import
           });
           // The BaileysSessionManager handles actual session cleanup for loggedOut cases.
           // If not loggedOut, Baileys might attempt reconnection internally.

@@ -1,4 +1,8 @@
-import baileys, { WAMessage, DisconnectReasonKey } from '@whiskeysockets/baileys';
+import {
+    WAMessage,
+    DisconnectReasonKey,
+    DisconnectReason
+} from '@whiskeysockets/baileys';
 import * as McpEventEmitter from '../mcp/mcp-event-emitter';
 import * as MediaHandler from '../media/media-handler';
 import { presencia } from '@modelcontextprotocol/sdk';
@@ -42,7 +46,7 @@ export function handleBaileysConnected(mcpSessionId: string): void {
  * @param reason The reason for disconnection.
  */
 export function handleBaileysDisconnected(mcpSessionId: string, reason: DisconnectReasonKey | undefined): void {
-  const isLoggedOut = reason === baileys.DisconnectReason.loggedOut;
+  const isLoggedOut = reason === DisconnectReason.loggedOut; // Use direct import
   log(mcpSessionId, `Baileys disconnected. Reason: ${reason || 'Unknown'}, Logged out: ${isLoggedOut}`);
   McpEventEmitter.sendEventToClient(mcpSessionId, 'baileys_event', {
     subType: 'connection_update',

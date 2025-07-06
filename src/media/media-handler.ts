@@ -1,4 +1,9 @@
-import baileys, { WAMessage, MessageType } from '@whiskeysockets/baileys';
+import {
+    WAMessage,
+    MessageType,
+    downloadMediaMessage,
+    getDevice
+} from '@whiskeysockets/baileys';
 import { writeFile, readFile, unlink } from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -96,7 +101,7 @@ export async function downloadAndProcessMedia(
 
   try {
     log(mcpSessionId, `Attempting to download ${messageType} (MIME: ${mimeType || 'N/A'}). Name: ${originalFileName}`);
-    const downloadedMedia = await baileys.downloadMediaMessage( // use baileys.downloadMediaMessage
+    const downloadedMedia = await downloadMediaMessage( // use direct import
       message,
       'buffer',
       {},
