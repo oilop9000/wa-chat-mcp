@@ -1,19 +1,19 @@
 import {
-    makeWASocket,
-    useMultiFileAuthState,
-    DisconnectReason,
-    BaileysEventMap,
-    ConnectionState,
-    SocketConfig,
-    WAMessage,
-    MessageUpsertType,
-    BaileysSocket,
-    DisconnectReasonKey
+  makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  BaileysEventMap,
+  ConnectionState,
+  SocketConfig,
+  WAMessage,
+  MessageUpsertType,
+  BaileysSocket,
+  DisconnectReasonKey
 } from '@whiskeysockets/baileys';
 import path from 'path';
 import { Boom } from '@hapi/boom';
 import { unlink } from 'fs/promises'; // For deleting auth state
-import qrcode from 'qrcode-terminal';
+import qrcode from 'qrcode';
 // import * as BAILEYS_MESSAGE_TYPE from '@whiskeysockets/baileys' // This line was causing the error
 // We already import WAMessage which is a good general type for messages.
 // Specific message content types can be accessed via message.message.imageMessage etc.
@@ -66,7 +66,7 @@ export async function getOrCreateBaileysSession(
     log(mcpSessionId, 'Returning existing Baileys socket.');
     existingSession.lastActivityTime = new Date();
     if (existingSession.qrCode && (existingSession.socket as any).ws?.readyState !== (existingSession.socket as any).ws?.OPEN) {
-        eventCallbacks.onQR(existingSession.qrCode);
+      eventCallbacks.onQR(existingSession.qrCode);
     }
     return existingSession.socket;
   }
@@ -79,8 +79,8 @@ export async function getOrCreateBaileysSession(
     info: (...args: any[]) => console.log('[Baileys INFO]', ...args),
     error: (...args: any[]) => console.error('[Baileys ERROR]', ...args),
     warn: (...args: any[]) => console.warn('[Baileys WARN]', ...args),
-    debug: (...args: any[]) => {}, // console.log('[Baileys DEBUG]', ...args), // Disabled debug for less verbosity
-    trace: (...args: any[]) => {}, // console.log('[Baileys TRACE]', ...args),
+    debug: (...args: any[]) => { }, // console.log('[Baileys DEBUG]', ...args), // Disabled debug for less verbosity
+    trace: (...args: any[]) => { }, // console.log('[Baileys TRACE]', ...args),
     fatal: (...args: any[]) => console.error('[Baileys FATAL]', ...args),
     child: () => minimalBaileysLogger, // child() devuelve el mismo logger
   };
@@ -115,10 +115,16 @@ export async function getOrCreateBaileysSession(
     if (qr) {
       log(mcpSessionId, 'QR code received. Attempting to display directly in server console...');
       try {
-        qrcode.generate(qr, { small: true }); // Sin callback, debería imprimir a la consola
-        console.log('<<<<< QR Code should be above this line >>>>>');
+        qrcode.toString(qr, { type: 'terminal', small: true }, (err, url) => {
+          if (err) {
+            console.error('[qrcode.toString] Error during QR generation for console:', err.message);
+            return;
+          }
+          console.log(url);
+          console.log('<<<<< QR Code should be above this line >>>>>');
+        });
       } catch (e: any) {
-        console.error('[qrcode.generate] Error during QR generation for console:', e.message);
+        console.error('[qrcode.toString] Error during QR generation for console:', e.message);
       }
       newBaileysSession.qrCode = qr;
       eventCallbacks.onQR(qr); // Still send via SSE for any connected client
@@ -129,7 +135,7 @@ export async function getOrCreateBaileysSession(
       const isLoggedOut = boomError?.output?.statusCode === DisconnectReason.loggedOut;
       // Prioritize specific error message for restart, then status code 515
       const isRestartRequired = boomError?.message.includes('Stream Errored (restart required)') ||
-                                boomError?.output?.statusCode === 515;
+        boomError?.output?.statusCode === 515;
 
       log(mcpSessionId, `Connection closed. Error: ${boomError?.message || 'No error object'}, Baileys Reason: ${lastDisconnect?.reason}, LoggedOut: ${isLoggedOut}, RestartRequired: ${isRestartRequired}`);
       eventCallbacks.onDisconnected(lastDisconnect?.reason as DisconnectReasonKey, mcpSessionId);
@@ -182,7 +188,7 @@ export async function getOrCreateBaileysSession(
       }
     } else if (connection === 'open') {
       log(mcpSessionId, 'Connection opened successfully.');
-      if(baileysSessions.has(mcpSessionId)) { // Session might have been re-created
+      if (baileysSessions.has(mcpSessionId)) { // Session might have been re-created
         const currentSession = baileysSessions.get(mcpSessionId)!;
         currentSession.retryCount = 0; // Reset retry count on successful connection
         baileysSessions.set(mcpSessionId, currentSession); // Update session in map
@@ -190,7 +196,7 @@ export async function getOrCreateBaileysSession(
       }
       newBaileysSession.qrCode = undefined; // Clear QR once connected (newBaileysSession might be stale here if reconnected)
       const sessionToClearQR = baileysSessions.get(mcpSessionId);
-      if(sessionToClearQR) sessionToClearQR.qrCode = undefined;
+      if (sessionToClearQR) sessionToClearQR.qrCode = undefined;
 
       eventCallbacks.onConnected();
     }
@@ -199,12 +205,12 @@ export async function getOrCreateBaileysSession(
   sock.ev.on('messages.upsert', (m: { messages: WAMessage[], type: MessageUpsertType }) => { // Changed pkgBaileys.MessageUpsertType to MessageUpsertType
     // log(mcpSessionId, `New message upsert: ${JSON.stringify(m)}`);
     if (m.messages && m.messages.length > 0) {
-        // We typically care about new messages that are not from oneself and have actual content
-        m.messages.forEach((msg: WAMessage) => {
-            if (msg.message && !msg.key.fromMe) { // Process if message exists and not from self
-                eventCallbacks.onMessage(msg, mcpSessionId);
-            }
-        });
+      // We typically care about new messages that are not from oneself and have actual content
+      m.messages.forEach((msg: WAMessage) => {
+        if (msg.message && !msg.key.fromMe) { // Process if message exists and not from self
+          eventCallbacks.onMessage(msg, mcpSessionId);
+        }
+      });
     }
   });
 
@@ -266,15 +272,15 @@ export async function removeBaileysSession(mcpSessionId: string, deleteAuthState
         // Ensure the directory exists before trying to remove it.
         const fs = require('fs').promises;
         try {
-            await fs.rm(session.stateDir, { recursive: true, force: true });
-            log(mcpSessionId, `Auth state directory ${session.stateDir} removed.`);
+          await fs.rm(session.stateDir, { recursive: true, force: true });
+          log(mcpSessionId, `Auth state directory ${session.stateDir} removed.`);
         } catch (rmError: any) {
-            // ENOENT means directory doesn't exist, which is fine if we're cleaning up.
-            if (rmError.code !== 'ENOENT') {
-                log(mcpSessionId, `Error removing auth state directory ${session.stateDir}: ${rmError.message}`);
-            } else {
-                log(mcpSessionId, `Auth state directory ${session.stateDir} not found, no removal needed.`);
-            }
+          // ENOENT means directory doesn't exist, which is fine if we're cleaning up.
+          if (rmError.code !== 'ENOENT') {
+            log(mcpSessionId, `Error removing auth state directory ${session.stateDir}: ${rmError.message}`);
+          } else {
+            log(mcpSessionId, `Auth state directory ${session.stateDir} not found, no removal needed.`);
+          }
         }
       } catch (err) {
         log(mcpSessionId, `Error deleting auth state for session ${mcpSessionId} at ${session.stateDir}: ${err instanceof Error ? err.message : String(err)}`);

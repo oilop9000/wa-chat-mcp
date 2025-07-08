@@ -1,8 +1,8 @@
 import {
-    WAMessage,
-    MessageType,
-    downloadMediaMessage,
-    getDevice
+  WAMessage,
+  MessageType,
+  downloadMediaMessage,
+  getDevice
 } from '@whiskeysockets/baileys';
 import { writeFile, readFile, unlink } from 'fs/promises';
 import path from 'path';
@@ -91,9 +91,9 @@ export async function downloadAndProcessMedia(
   if (!mediaKey || !url) {
     log(mcpSessionId, `Media key or URL missing for message type ${messageType}.`);
     return {
-        type: messageType || 'unknown',
-        mimeType: '', // Unknown at this point
-        error: 'Media key or URL missing from Baileys message.'
+      type: messageType || 'unknown',
+      mimeType: '', // Unknown at this point
+      error: 'Media key or URL missing from Baileys message.'
     };
   }
 
@@ -106,13 +106,13 @@ export async function downloadAndProcessMedia(
       'buffer',
       {},
       {
-        logger: { info: () => {}, error: console.error, warn: console.warn, debug: () => {} } as any,
+        logger: { info: () => { }, error: console.error, warn: console.warn, debug: () => { } } as any,
       }
     );
 
     if (!(downloadedMedia instanceof Buffer)) {
-        // Handle cases where it might be a stream if type was 'stream' or if API changes
-        throw new Error('Downloaded media is not a Buffer as expected.');
+      // Handle cases where it might be a stream if type was 'stream' or if API changes
+      throw new Error('Downloaded media is not a Buffer as expected.');
     }
     const buffer: Buffer = downloadedMedia;
 
