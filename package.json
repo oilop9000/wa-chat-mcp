@@ -4,7 +4,7 @@
   "description": "MCP server to interact with whatsapp",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx @modelcontextprotocol/inspector http://localhost:3001",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc -w & nodemon dist/index.js"
@@ -25,14 +25,16 @@
     "@types/dotenv": "^6.1.1",
     "@types/hapi__boom": "^7.4.1",
     "@types/node": "^24.0.10",
+    "@types/qrcode": "^1.5.5",
     "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.10",
     "typescript": "^5.8.3"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.15.0",
+    "@whiskeysockets/baileys": "^6.7.18",
     "dotenv": "^17.0.1",
-    "qrcode-terminal": "^0.12.0",
+    "qrcode": "^1.5.4",
     "uuid": "^11.1.0"
   }
 }
